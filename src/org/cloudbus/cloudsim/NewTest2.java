@@ -32,32 +32,6 @@ import org.cloudbus.cloudsim.xml.DvfsDatas;
 
 public class NewTest2 {
 
-	//任务大小每个要不一样。否则贪心是白扯。
-	//不能分配到其他center.,鉴于如此，看来必须要重写一个broker类了。明天再说。
-	//重新写了个类MyPowerBroker,.但是看到源代码竟然特别有趣，倒是不如直接用原先的MyPowerBroker，因此直接移花接木就可以了。就做了这么一点微小的工作
-	//8-21不行。一定要重写broker！否则只能按照默认的方式分配虚拟机给center,如果有可能是不是还要重写一个Vm类把datacenter的id传参进去？。。
-	//但是也不一定。因为MyPowerBroker->第二层processResourceCharacteristics(SimEvent ev)的参数是ev。。。看看能不能在ev上做手脚吧。
-	//回去把程序的调试从创建一个entity子类比如center和broker开始直到Cloudsim.startsimulation()或者更往后要走一遍，要不根本就不知道这entity和event是啥时候
-	//加进去的，这如何下手啊。
-	
-	//卧槽。。真是不妙  根本 除了找到vm的dest是什么时候传入SimEvent 就根本没有任何vm可以传入目标center的机会。只能从这里钻空子了。。话说cloudsim竟然没有提供定向
-	//在center创建vm？？？简直神不符合常理啊！！
-	//分析出来了一部分。。。应该是在MyPowerBroker.processEvent(ev)之前！应该是在之前就产生了分配多少个vm的策略？？(大雾   还有待分析  
-	//那就得看最初始，就是刚刚MyPowerBroker.startEntity()开始之后发生什么了！
-	//MDZZ。。。完全估算错误！！看这源代码的意思，clousim闹了半天根本就没打算做定向在center创建vm的策略吗？！！
-	//因为一开始就没打算传入center的name或者id,所以也不应该从初始看了。。应该在。。？
-	//决定了！！不是重写broker而是重写vm！加上一个string targetcenter，在第三层vmcreate上直接忽略原先第二层默认的createVmsInDatacenter(getDatacenterIdsList().get(0));
-	//然后直接在上边改掉center[0]的魔咒。。2333 这是明天的活啦！..但是这么说来，怎么也得重写broker的第三层才是。
-	//不好整！！应该先把(int[])getdata()这个玩应弄明白！那东西为啥会转成int[]？？
-	//又被打击了。只能从第二层改，而且它的设置是，只要是一个broker，所有它拥有的vm就全在一个center中批量创建。这就好纠结了。。
-	//虽然贪心变得作用微乎其微，毕竟接收的量少了。但是还是要一个线程创建4个broker分别属于4个center吧。它broker发收机制实在是不错，当然也难改，我并不想要动它。
-	//还需要动些手脚把vm的center传进去，这个超麻烦。这一个搞不好，可能还要重写simEvent。。。。
-	//第二层的ev貌似没用到dest参数。说不好可以在datacenter里边下手。注意是datacenter!!!!因为是由它传过来的event.
-	
-	//不行。还是缝合的死死。就只能这样了！最终方案决定！
-	//不改simevent,不改datacenter,只改vm和broker。在【第二层】get(0)那里偷换成vm的targetdatacenter的信息，
-	//其次：1.在之前就用4个broker筛选好了不同center的vm,直接添加。但是很不爽，却肯定是对的。
-	//2.只用1个broker，但是把第二层的代码改成：接收完4个center的characteristics的信息之后，就开始每个vm读取targetdatacenter信息，并且把批量调用的代码篡改。
 	
 	private static List<Mycenter> DatacenterList = new ArrayList<Mycenter>();
 	private static List<MyPowerBroker> MyPowerBrokerList = new ArrayList<MyPowerBroker>();//接收传出的信息(模拟完毕)
@@ -185,7 +159,7 @@ public class NewTest2 {
 					
 			int vmss = 0;
 			for(int i = 0 ; i < 1 ; i ++){
-				int vms = (int)(Math.random() * 7 + 1 ) ;//每个人最多创建8台虚机。。。以后再改   
+				int vms = (int)(Math.random() * 7 + 10 ) ;//每个人最多创建17台虚机。。。以后再改   
 				vmss = vms;
 				vmlist.addAll(createVM(broker.getId(), vms*50/100 ,2, "SY"));//vms*50/100的虚拟机是0号机。。。瞎编的数据 谁知道他会请求什么
 				vmlist.addAll(createVM(broker.getId(), vms*30/100 ,1, "CD"));
@@ -193,7 +167,7 @@ public class NewTest2 {
 				vmlist.addAll(createVM(broker.getId(), vms-vms*50/100-vms*30/100-vms*20/100,3, "BJ"));
 				//submit vm list to the broker
 				
-				int missionNum = (int)(Math.random() * 10 );//最多不超过10个？好像太多了。。。以后再改吧。
+				int missionNum = (int)(Math.random() * 10 + 10 );//最多不超过20个？好像太多了。。。以后再改吧。
 				missionList.addAll(createCloudletList(broker.getId(), missionNum, new Date(CloudSim.getSimulationCalendar().getTimeInMillis())));//测试用例没有请求时间。。。遂初始化为标准sh
 				//submit cloudletlist to the broker?.,
 			}
@@ -222,8 +196,8 @@ public class NewTest2 {
 //			firstOrderOfVms();
 //			greedy();
 			
-//			new Thread(new NewTest2().new Transmitter()).start();
-//			Thread.sleep(1000);
+			new Thread(new NewTest2().new Transmitter()).start();
+			Thread.sleep(1000);
 			
 			double lastClock = CloudSim.startSimulation();
 
@@ -261,7 +235,9 @@ public class NewTest2 {
 					System.out.println(pow);
 				}
 				System.out.println();
-				DrawPics.drawElec(temp, lastClock, power, center.getName());//打印电量总分布
+				double DatacenterLastClock = (center.getLastProcessTime());
+				double lastPower = center.getPower();
+				DrawPics.drawElec(temp, DatacenterLastClock, lastPower, center.getName());//打印电量总分布
 				
 			}
 			
@@ -307,22 +283,22 @@ public class NewTest2 {
 		switch(name){
 		case "SY":
 			ram = 4096;
-			num = 20 ;//改成2压力小很多。别忘改回200！
+			num = 200 ;//改成2压力小很多。别忘改回200！
 			mips = 400 ;
 			break;
 		case "BJ":
 			ram = 8192;
-			num = 40 ;//改成4压力小很多。别忘改回200！
+			num = 400 ;//改成4压力小很多。别忘改回200！
 			mips = 800 ;
 			break;
 		case "SH":
 			ram = 8192;
-			num = 10;//改成1压力小很多。别忘改回200！
+			num = 100;//改成1压力小很多。别忘改回200！
 			mips = 200 ;
 			break;
 		case "CD":
 			ram = 2048;
-			num = 20;//改成2压力小很多。别忘改回200！
+			num = 200;//改成2压力小很多。别忘改回200！
 			mips = 200 ;
 			break;
 		}
@@ -439,7 +415,7 @@ public class NewTest2 {
 		public void run() {
 	
 	
-			long time = 10 ;//10s 在 simulator中
+			long time = 1 ;//10s 在 simulator中
 			ListIterator<Date> it1 = timeList.listIterator();
 			Date first = null;
 			if(it1.hasNext()) first =  it1.next();

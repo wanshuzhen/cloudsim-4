@@ -95,6 +95,8 @@ public class DrawPics {
 		 while(lastClock > 0){
 			 lastClock -= 3600;
 		 }
+		 
+		 Power.add(lastPower);
 
 		 if(Power.size() > 1){
 			 int perwidth = rightX - leftX;

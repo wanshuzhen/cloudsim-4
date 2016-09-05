@@ -157,38 +157,27 @@ public class NewTest2 {
 			List<MyVm> vmlist = new ArrayList<MyVm>();
 			List<MyCloudlet> missionList = new ArrayList<MyCloudlet>();
 					
-			int vmss = 0;
+			int vmss = 1;
 			for(int i = 0 ; i < 1 ; i ++){
-				int vms = (int)(Math.random() * 7 + 10 ) ;//每个人最多创建17台虚机。。。以后再改   
-				vmss = vms;
-				vmlist.addAll(createVM(broker.getId(), vms*50/100 ,2, "SY"));//vms*50/100的虚拟机是0号机。。。瞎编的数据 谁知道他会请求什么
-				vmlist.addAll(createVM(broker.getId(), vms*30/100 ,1, "CD"));
-				vmlist.addAll(createVM(broker.getId(), vms*20/100 ,0, "SH"));
-				vmlist.addAll(createVM(broker.getId(), vms-vms*50/100-vms*30/100-vms*20/100,3, "BJ"));
+				vmlist.addAll(createVM(broker.getId(), vmss ,0, "SY"));
 				//submit vm list to the broker
 				
-				int missionNum = (int)(Math.random() * 10 + 10 );//最多不超过20个？好像太多了。。。以后再改吧。
-				missionList.addAll(createCloudletList(broker.getId(), missionNum, new Date(CloudSim.getSimulationCalendar().getTimeInMillis())));//测试用例没有请求时间。。。遂初始化为标准sh
+				List <MyCloudlet> list = new ArrayList<MyCloudlet>();
+				long length = 24 * 60 * 60 * 150;//空转24h
+				long fileSize = 300;
+				long outputSize = 300;
+				int pesNumber = 1 ;
+				UtilizationModel utilizationModel = new UtilizationModelFull();
+				//测试用例的话，初始为模拟开始的时间。
+				MyCloudlet cloudlet = new MyCloudlet(allcloudletList.size(), length, pesNumber, fileSize, outputSize, utilizationModel, utilizationModel, utilizationModel, new Date(CloudSim.getSimulationCalendar().getTimeInMillis()));
+				cloudlet.setUserId(broker.getId());
+				list.add(cloudlet);
+				allcloudletList.add(cloudlet);
+				
+				missionList.add(cloudlet);
 				//submit cloudletlist to the broker?.,
 			}
 				
-				//直接使用贪心！因为在外边传递时直接就排好了序，进入内部默认又是轮循，所以直接相当于贪心了。
-				vmlist.sort(new Comparator<MyVm>(){
-					
-					@Override
-					public int compare(MyVm o1, MyVm o2) {
-						return (int)((o1.getCurrentRequestedMaxMips()) - (o2.getCurrentRequestedTotalMips())) ;
-					}
-					
-				});
-				missionList.sort(new Comparator<MyCloudlet>(){
-					
-					@Override
-					public int compare(MyCloudlet o1, MyCloudlet o2) {
-						return (int)(o1.getCloudletLength() - o2.getCloudletLength());
-					}
-					
-				});
 				broker.submitVmList(vmlist);
 				broker.submitCloudletList(missionList);
 				
@@ -415,7 +404,7 @@ public class NewTest2 {
 		public void run() {
 	
 	
-			long time = 1 ;//10s 在 simulator中
+			long time = 0 ;//10s 在 simulator中
 			ListIterator<Date> it1 = timeList.listIterator();
 			Date first = null;
 			if(it1.hasNext()) first =  it1.next();

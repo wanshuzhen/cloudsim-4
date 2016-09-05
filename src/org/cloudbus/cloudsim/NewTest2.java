@@ -1,11 +1,10 @@
 package org.cloudbus.cloudsim;
 
-import java.io.BufferedReader;
-import java.io.FileInputStream;
-import java.io.InputStreamReader;
-import java.text.DateFormat;
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.net.ServerSocket;
+import java.net.Socket;
 import java.text.DecimalFormat;
-import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Comparator;
@@ -13,9 +12,6 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.ListIterator;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 import org.cloudbus.cloudsim.core.CloudSim;
 import org.cloudbus.cloudsim.power.MyCloudlet;
@@ -36,9 +32,9 @@ public class NewTest2 {
 	private static List<Mycenter> DatacenterList = new ArrayList<Mycenter>();
 	private static List<MyPowerBroker> MyPowerBrokerList = new ArrayList<MyPowerBroker>();//接收传出的信息(模拟完毕)
 //	private static MyPowerBroker broker ;
-	private static ArrayList<Date> timeList = new ArrayList<Date>();
 	private static List<MyCloudlet> allcloudletList = new ArrayList<MyCloudlet>();//根本用不上 用这个玩意submitcloudletlist之后就没有卵用了  竟然才看出来。。
 	private static List<MyVm> allvmlist = new ArrayList<MyVm>();//恐怕用不上这个吧。不，有点用。。。帮忙记录vm的数量。。然后分发给vm id...
+	private static ObjectInputStream ois = null;
 	
 	private static List<MyVm> createVM(int userId, int nb_vm ,int type, String targetDatacenter) {
 
@@ -96,39 +92,19 @@ public class NewTest2 {
 	}
 	
 	
-	public static void main(String[] args) {
+	public static void main(String[] args) throws IOException, ClassNotFoundException {
 
 		Log.printLine("Starting mysimple...");
+
+		ServerSocket ss = new ServerSocket(10000);
+		Socket s = ss.accept();
+		
+		ois = new ObjectInputStream(s.getInputStream());
+		Integer num = (Integer)ois.readObject();
 		
 		try {
-			//批量读取，这是不对的！应该要这个buffer批量读取之后，按照请求时间按照时间模拟。。。用一个TreeSet顺序存储时间吧.
-			//然后这个虚拟机还不能停止模拟？一直运行center？
-			//循环读取currenttmp  虽然是加密文件  但是名字以后再做修改。
-			BufferedReader reader = new BufferedReader(new InputStreamReader(new FileInputStream("currenttmp")));
-			String regex = new String("[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}");//请求的时间不知道是2008-01-01还是2008/01/01还是01/01/2008...编号或许全是数字吧。
-			Pattern p = Pattern.compile(regex);
-			String s = new String();
-			DateFormat format = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-			while((s = reader.readLine())!=null){
-				Matcher m = p.matcher(s);
-				if(m.find()){
-					Date d = format.parse(m.group());
-					timeList.add(d);//user。。。这么看来只要知道user有几个就行？user是三无属性啊，知道有多少个就可以？
-				}
-			}
-			reader.close();
-			timeList.sort(new Comparator<Date>(){
-
-				@Override
-				public int compare(Date o1, Date o2) {
-					return o1.compareTo(o2);
-				}
-				
-			});
 		
-			//无限读取的话，一定要修改Cloudsim.terminateAt,让其大于0并且别忘了是100:1.而且程序内部维护的时间流动的原理我也不知道，只能简单的使用calendar.add()。
-			
-			int num_user = timeList.size(); // 这个要更改。
+			int num_user = num; // 这个要更改。
 			
 			Calendar calendar = Calendar.getInstance();
 			calendar.clear();
@@ -400,68 +376,28 @@ public class NewTest2 {
 	
 	class Transmitter implements Runnable{
 	
+		@SuppressWarnings("unchecked")
 		@Override
 		public void run() {
-	
-	
-			long time = 0 ;//10s 在 simulator中
-			ListIterator<Date> it1 = timeList.listIterator();
-			Date first = null;
-			if(it1.hasNext()) first =  it1.next();
-			else return;
 			
 			while(true){
 				
-				CloudSim.pauseSimulation(time);//别弄错！这个的意思是，在200ms的时候pause一次！按照源代码来看，程序会不断停滞100ms知道resumeSimulation为止。
-				while (true) {
-					if (CloudSim.isPaused()) {
-						break;
-					}
-					
-					System.out.println("还在运行？？");
-					
-					try {
-						Thread.sleep(100);//此线程一直休眠到Cloudsim.pause为止！
-					} catch (InterruptedException e) {
-						e.printStackTrace();
-					}
+				CloudSim.pauseSimulation();//别弄错！这个的意思是，在200ms的时候pause一次！按照源代码来看，程序会不断停滞100ms知道resumeSimulation为止。
+				
+				List<Date> dateList = null;
+				try {
+					dateList = (List<Date>)ois.readObject();
+				} catch (ClassNotFoundException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				} catch (IOException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
 				}
 				
-				System.out.println("还在运行？？");
-				
-				Calendar calendar = Calendar.getInstance();
-				calendar.clear();
-				calendar.set(2007, 8, 1, 0, 0, 0);
-				double clock = CloudSim.clock() * 100;//这里有bug！怎么可能全都加到一个id=7的broker呢！？回来再看
-				calendar.add(Calendar.SECOND, (int)clock);
-				Date date = new Date(calendar.getTimeInMillis());
-				int cnt = 0 ;
-				boolean isFinal = false;
-//				boolean judgeNext = it1.hasNext();
-				List<Date> dateList = new ArrayList<Date>();
-				while(date.compareTo(first)>0){//一次全加入就行，多次就不行？*100去掉就不行？？
-					cnt ++;
-					dateList.add(first);//只要cnt++就加到里边
-					if(it1.hasNext()) {
-						first = it1.next();
-					}
-					else {
-						isFinal = true; 
-						break;
-					}
-					System.out.println(date + " "+ first);
-				}
-				if(cnt == 0){
-					time += 10;
-					try {
-						Thread.sleep(100);
-					} catch (InterruptedException e) {
-						e.printStackTrace();
-					}//我只想让这个线程在模拟中睡10秒 按照100：1  那么就是睡0.1s 即100ms 即：每隔10s发送一次这10s内的请求集合
-					
+				if(dateList == null){
 					CloudSim.resumeSimulation();
-					
-					continue ;
+					break;
 				}
 				
 				MyPowerBroker broker = null;
@@ -475,7 +411,7 @@ public class NewTest2 {
 				
 				//Create VMs and Cloudlets and send them to broker
 				
-				int num_user = cnt;
+				int num_user = dateList.size();
 				List<MyVm> vmlist = new ArrayList<MyVm>();
 				List<MyCloudlet> missionList = new ArrayList<MyCloudlet>();
 						
@@ -514,21 +450,14 @@ public class NewTest2 {
 					
 					
 //					CloudSim.addEntity(broker);//放进CloudSim中。//这句话造成了线程的不安全。
-
-					if(isFinal){
-						CloudSim.resumeSimulation();
-						break;
-					}
-					
-					time += 10;
-					
-					try {
-						Thread.sleep(100);
-					} catch (InterruptedException e) {
-						e.printStackTrace();
-					}//我只想让这个线程在模拟中睡10秒 按照100：1  那么就是睡0.1s 即100ms 即：每隔10s发送一次这10s内的请求集合
+//					try {
+//						Thread.sleep(100);
+//					} catch (InterruptedException e) {
+//						e.printStackTrace();
+//					}//我只想让这个线程在模拟中睡10秒 按照100：1  那么就是睡0.1s 即100ms 即：每隔10s发送一次这10s内的请求集合
 					
 					CloudSim.resumeSimulation();
+					
 			}
 			
 			
@@ -536,40 +465,4 @@ public class NewTest2 {
 		
 	}
 	
-	
-//	private static void firstOrderOfVms(){
-//		int size = allcloudletList.size();
-//		for(int i = 0 ; i < size ; i ++){
-//			//��ȫ˳���,��������Ӧ����Ĭ�Ϸ�����
-//			allcloudletList.get(i).setVmId(i%allvmlist.size());
-//		}
-//	}
-	
-//	private static void greedy(){//̰���㷨��   //不在broker里边弄得话，就是废方法。因为这里只更改了外部allcloudletlist中的匹配，但是真正broker里边要执行的list没有
-//											//修改。因此好比扯淡一般。
-//		
-//		allcloudletList.sort(new Comparator<Cloudlet>(){
-//
-//			@Override
-//			public int compare(Cloudlet o1, Cloudlet o2) {
-//				return (int)(o1.getCloudletLength() - o2.getCloudletLength());
-//			}
-//			
-//		});
-//		
-//		allvmlist.sort(new Comparator<Vm>(){
-//
-//			@Override
-//			public int compare(Vm o1, Vm o2) {
-//				return (int)((o1.getCurrentRequestedMaxMips()) - (o2.getCurrentRequestedTotalMips())) ;
-//			}
-//			
-//		});
-//		
-//		for(int i = 0 ; i < allcloudletList.size() ; i ++){
-//			allcloudletList.get(i).setVmId(i%allvmlist.size());
-//		}
-//	}
-	
 }
-	

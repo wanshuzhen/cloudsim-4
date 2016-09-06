@@ -30,8 +30,8 @@ public class Client {
 
 	public static void main(String[] args) throws UnknownHostException, IOException, ParseException {
 		
-//		Socket socket = new Socket("2001:da8:9000:a811:c930:9882:dcf4:8e41",10000);
-		Socket socket = new Socket("172.28.231.241",10000);
+//		Socket socket = new Socket("2001:da8:9000:a811:c930:9882:dcf4:8e41",1000);
+		Socket socket = new Socket("172.28.231.241",1000);
 		//预备序列化传输到服务器
 		oos = new ObjectOutputStream(socket.getOutputStream());
 		

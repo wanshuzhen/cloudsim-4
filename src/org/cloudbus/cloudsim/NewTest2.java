@@ -96,7 +96,7 @@ public class NewTest2 {
 
 		Log.printLine("Starting mysimple...");
 
-		ServerSocket ss = new ServerSocket(10000);
+		ServerSocket ss = new ServerSocket(1000);
 		Socket s = ss.accept();
 		
 		ois = new ObjectInputStream(s.getInputStream());

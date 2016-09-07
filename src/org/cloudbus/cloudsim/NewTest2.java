@@ -376,22 +376,29 @@ public class NewTest2 {
 	
 	class Transmitter implements Runnable{
 	
-		@SuppressWarnings("unchecked")
-		@Override
 		public void run() {
 			
 			while(true){
 				
 				CloudSim.pauseSimulation();//别弄错！这个的意思是，在200ms的时候pause一次！按照源代码来看，程序会不断停滞100ms知道resumeSimulation为止。
 				
+				while (true) {
+					if (CloudSim.isPaused()) {
+						break;
+					}
+					try {
+						Thread.sleep(100);//此线程一直休眠到Cloudsim.pause为止！
+					} catch (InterruptedException e) {
+						e.printStackTrace();
+					}
+				}
+				
 				List<Date> dateList = null;
 				try {
 					dateList = (List<Date>)ois.readObject();
 				} catch (ClassNotFoundException e) {
-					// TODO Auto-generated catch block
 					e.printStackTrace();
 				} catch (IOException e) {
-					// TODO Auto-generated catch block
 					e.printStackTrace();
 				}
 				

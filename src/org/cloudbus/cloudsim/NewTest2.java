@@ -2,6 +2,7 @@ package org.cloudbus.cloudsim;
 
 import java.io.IOException;
 import java.io.ObjectInputStream;
+import java.io.PrintWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.text.DecimalFormat;
@@ -35,6 +36,8 @@ public class NewTest2 {
 	private static List<MyCloudlet> allcloudletList = new ArrayList<MyCloudlet>();//根本用不上 用这个玩意submitcloudletlist之后就没有卵用了  竟然才看出来。。
 	private static List<MyVm> allvmlist = new ArrayList<MyVm>();//恐怕用不上这个吧。不，有点用。。。帮忙记录vm的数量。。然后分发给vm id...
 	private static ObjectInputStream ois = null;
+	private static PrintWriter pw = null;
+	private static int count = 0;
 	
 	private static List<MyVm> createVM(int userId, int nb_vm ,int type, String targetDatacenter) {
 
@@ -101,6 +104,10 @@ public class NewTest2 {
 		
 		ois = new ObjectInputStream(s.getInputStream());
 		Integer num = (Integer)ois.readObject();
+		System.out.println("received the number !!");
+		
+		pw = new PrintWriter(s.getOutputStream(),true);
+		pw.println("received the number.");//必须用PrintWriter.println才能让client接到消息。write不行。。。。
 		
 		try {
 		
@@ -267,7 +274,7 @@ public class NewTest2 {
 			mips = 200 ;
 			break;
 		}
-		//按照不明配置
+		//按照不明配置 内部默认的配置写法。
 		boolean enableDVFS = true; 
 		ArrayList<Double> freqs = new ArrayList<>(); 
 		freqs.add(59.925);
@@ -376,16 +383,22 @@ public class NewTest2 {
 	
 	class Transmitter implements Runnable{
 	
+		@SuppressWarnings("unchecked")
 		public void run() {
+			
+			int time = 10;
 			
 			while(true){
 				
-				CloudSim.pauseSimulation();//别弄错！这个的意思是，在200ms的时候pause一次！按照源代码来看，程序会不断停滞100ms知道resumeSimulation为止。
+				CloudSim.pauseSimulation(time);//别弄错！这个的意思是，在200ms的时候pause一次！按照源代码来看，程序会不断停滞100ms知道resumeSimulation为止。
+				//绝不可以一开始pause！要不一开始不是数据中心被弄成实体！而是broker被变成实体了！！所以！只要改成time就好了。
+				//此处解决了concurrency...Exception.！！很可能原因是使用迭代器删除了某些东西！
 				
 				while (true) {
 					if (CloudSim.isPaused()) {
 						break;
 					}
+					System.out.println("还在运行？");
 					try {
 						Thread.sleep(100);//此线程一直休眠到Cloudsim.pause为止！
 					} catch (InterruptedException e) {
@@ -396,10 +409,15 @@ public class NewTest2 {
 				List<Date> dateList = null;
 				try {
 					dateList = (List<Date>)ois.readObject();
+					time += 10;
+					count ++; 
+					System.out.println("received the "+count+" broker.");
+					pw.println("get the "+count+" broker.");//一定要是println！！
 				} catch (ClassNotFoundException e) {
 					e.printStackTrace();
 				} catch (IOException e) {
 					e.printStackTrace();
+					dateList = null;
 				}
 				
 				if(dateList == null){

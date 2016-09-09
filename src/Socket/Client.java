@@ -4,6 +4,7 @@ import java.io.BufferedReader;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.ObjectOutputStream;
 import java.net.Socket;
@@ -20,13 +21,16 @@ import java.util.ListIterator;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import org.cloudbus.cloudsim.core.CloudSim;
-
 public class Client {
+	//已经检测出此socket没有任何错误，发送没有任何错误。
 	
 	private static ArrayList<Date> timeList = new ArrayList<Date>();
 	
 	private static ObjectOutputStream oos = null;
+	
+	private static InputStream br = null;
+	
+	private static int count = 0 ;
 
 	public static void main(String[] args) throws UnknownHostException, IOException, ParseException {
 		
@@ -35,11 +39,17 @@ public class Client {
 		//预备序列化传输到服务器
 		oos = new ObjectOutputStream(socket.getOutputStream());
 		
+		br = socket.getInputStream();
 		//读入所有文件。
 		read();
 		
 		//发送总请求人数：
 		oos.writeObject((Integer)timeList.size());
+		System.out.println("sending the numbers...");
+		byte [] b = new byte[1024];
+		int len = br.read(b);
+		String text = new String(b, 0, len);
+		System.out.println(text);
 		
 		//定时发送所有序列化Date
 		send();
@@ -73,8 +83,8 @@ public class Client {
 			List<Date> dateList = new ArrayList<Date>();
 			while(date.compareTo(first)>0){//一次全加入就行，多次就不行？*100去掉就不行？？
 				dateList.add(first);//只要cnt++就加到里边
+				System.out.println(date + " "+ first);
 				if(it1.hasNext()) {
-					System.out.println(date + " "+ first);
 					first = it1.next();
 				}
 				else {
@@ -87,6 +97,12 @@ public class Client {
 			}
 			else {
 				oos.writeObject(dateList);
+				count ++;
+				System.out.println("sending the "+count+"th brokers. and the dateList size is "+ dateList.size());
+				byte [] b = new byte[1024];//接收服务器传回来的信息
+				int len = br.read(b);
+				String text = new String(b, 0, len);
+				System.out.println(text);
 			}
 			if(isFinal){
 				oos.close();

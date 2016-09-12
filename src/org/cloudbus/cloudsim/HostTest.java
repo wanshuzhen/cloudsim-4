@@ -117,9 +117,9 @@ public class HostTest {
 		assertEquals(MIPS * 2, host.getVmScheduler().getAvailableMips(), 0);
 	}
 
-	@Ignore
-	@Test
-	public void testUpdateVmsProcessing() {
+//	@Ignore
+//	@Test
+//	public void testUpdateVmsProcessing() {
 //		UtilizationModelStochastic utilizationModel1 = new UtilizationModelStochastic();
 //		UtilizationModelStochastic utilizationModel2 = new UtilizationModelStochastic();
 //
@@ -170,9 +170,9 @@ public class HostTest {
 //		assertEquals(0, vmScheduler.updateVMProcessing(GRIDLET_LENGTH, mipsShare), 0);
 //
 //		assertTrue(vmScheduler.isFinishedGridlets());
-
-	}
-
+//
+//	}
+//
 //	@Test
 //	public void testUpdateVmsProcessing() {
 //		UtilizationModelStochastic utilizationModel1 = new UtilizationModelStochastic();

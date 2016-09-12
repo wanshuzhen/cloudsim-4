@@ -62,6 +62,9 @@ public class CloudSim {
 	/** The termination time. */
 	private static double terminateAt = -1;
 
+	/** The minimal time between events. Events within shorter periods after the last event are discarded. */
+	private static double minTimeBetweenEvents = 0.1;
+	
 	/**
 	 * Initialises all the common attributes.
 	 * 
@@ -132,13 +135,47 @@ public class CloudSim {
 	}
 
 	/**
+	 * Initialises CloudSim parameters. This method should be called before creating any entities.
+	 * <p>
+	 * Inside this method, it will create the following CloudSim entities:
+	 * <ul>
+	 * <li>CloudInformationService.
+	 * <li>CloudSimShutdown
+	 * </ul>
+	 * <p>
+	 * 
+	 * @param numUser the number of User Entities created. This parameters indicates that
+	 *            {@link gridsim.CloudSimShutdown} first waits for all user entities's
+	 *            END_OF_SIMULATION signal before issuing terminate signal to other entities
+	 * @param cal starting time for this simulation. If it is <tt>null</tt>, then the time will be
+	 *            taken from <tt>Calendar.getInstance()</tt>
+	 * @param traceFlag <tt>true</tt> if CloudSim trace need to be written
+	 * @param periodBetweenEvents - the minimal period between events. Events within shorter periods
+	 * after the last event are discarded.
+	 * @see gridsim.CloudSimShutdown
+	 * @see CloudInformationService.CloudInformationService
+	 * @pre numUser >= 0
+	 * @post $none
+	 */
+	public static void init(int numUser, Calendar cal, boolean traceFlag, double periodBetweenEvents) {
+	    if (periodBetweenEvents <= 0) {
+		throw new IllegalArgumentException("The minimal time between events should be positive, but is:" + periodBetweenEvents);
+	    }
+	    
+	    init(numUser, cal, traceFlag);
+	    minTimeBetweenEvents = periodBetweenEvents;
+	}
+	
+	
+	
+	/**
 	 * Starts the execution of CloudSim simulation. It waits for complete execution of all entities,
 	 * i.e. until all entities threads reach non-RUNNABLE state or there are no more events in the
 	 * future event queue.
 	 * <p>
 	 * <b>Note</b>: This method should be called after all the entities have been setup and added.
 	 * 
-	 * @return the double
+	 * @return the last clock time
 	 * @throws NullPointerException This happens when creating this entity before initialising
 	 *             CloudSim package or this entity name is <tt>null</tt> or empty.
 	 * @see gridsim.CloudSim#init(int, Calendar, boolean)
@@ -146,7 +183,7 @@ public class CloudSim {
 	 * @post $none
 	 */
 	public static double startSimulation() throws NullPointerException {
-		Log.printLine("Starting CloudSim version " + CLOUDSIM_VERSION_STRING);
+		Log.printConcatLine("Starting CloudSim version ", CLOUDSIM_VERSION_STRING);
 		try {
 			double clock = run();
 
@@ -212,6 +249,15 @@ public class CloudSim {
 		return true;
 	}
 
+	
+	/**
+	 * Returns the minimum time between events. Events within shorter periods after the last event are discarded. 
+	 * @return the minimum time between events.
+	 */
+	public static double getMinTimeBetweenEvents() {
+	    return minTimeBetweenEvents;
+	}
+
 	/**
 	 * Gets a new copy of initial simulation Calendar.
 	 * 
@@ -243,7 +289,7 @@ public class CloudSim {
 	}
 
 	/**
-	 * Sends a request to Cloud Information Service (GIS) entity to get the list of all Cloud
+	 * Sends a request to Cloud Information Service (CIS) entity to get the list of all Cloud
 	 * hostList.
 	 * 
 	 * @return A List containing CloudResource ID (as an Integer object) or if a CIS entity hasn't
@@ -270,7 +316,9 @@ public class CloudSim {
 	/** The deferred event queue. */
 	protected static DeferredQueue deferred;
 
-	/** The simulation clock. */
+	/** 
+         * The current simulation clock.
+         */
 	private static double clock;
 
 	/** Flag for checking if the simulation is running. */
@@ -432,7 +480,7 @@ public class CloudSim {
 			future.addEvent(evt);
 		}
 		if (e.getId() == -1) { // Only add once!
-			int id = entities.size();  //// why ? always = 0 ?!
+			int id = entities.size();
 			e.setId(id);
 			entities.add(e);
 			entitiesByName.put(e.getName(), e);
@@ -459,10 +507,14 @@ public class CloudSim {
 	 * called in simulations.
 	 * 
 	 * @return true, if successful otherwise
+         * @todo If the method shouldn't be called by the user,
+         * it should be protected in any way, such as changing
+         * its visibility to package.
 	 */
 	public static boolean runClockTick() {
 		SimEntity ent;
 		boolean queue_empty;
+		
 		int entities_size = entities.size();
 
 		for (int i = 0; i < entities_size; i++) {
@@ -471,26 +523,26 @@ public class CloudSim {
 				ent.run();
 			}
 		}
-
+				
 		// If there are more future events then deal with them
 		if (future.size() > 0) {
 			List<SimEvent> toRemove = new ArrayList<SimEvent>();
-			Iterator<SimEvent> it = future.iterator();
+			Iterator<SimEvent> fit = future.iterator();
 			queue_empty = false;
-			SimEvent first = it.next();
+			SimEvent first = fit.next();
 			processEvent(first);
 			future.remove(first);
 
-			it = future.iterator();
+			fit = future.iterator();
 
 			// Check if next events are at same time...
-			boolean trymore = it.hasNext();
+			boolean trymore = fit.hasNext();
 			while (trymore) {
-				SimEvent next = it.next();
+				SimEvent next = fit.next();
 				if (next.eventTime() == first.eventTime()) {
 					processEvent(next);
 					toRemove.add(next);
-					trymore = it.hasNext();
+					trymore = fit.hasNext();
 				} else {
 					trymore = false;
 				}
@@ -825,7 +877,7 @@ public class CloudSim {
 	 * Start the simulation running. This should be called after all the entities have been setup
 	 * and added, and their ports linked.
 	 * 
-	 * @return the double last clock value
+	 * @return the last clock value
 	 */
 	public static double run() {
 		if (!running) {

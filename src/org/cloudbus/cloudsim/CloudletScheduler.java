@@ -8,12 +8,17 @@
 
 package org.cloudbus.cloudsim;
 
+import java.util.ArrayList;
 import java.util.List;
+import org.cloudbus.cloudsim.network.datacenter.NetworkCloudletSpaceSharedScheduler;
+
 
 /**
  * CloudletScheduler is an abstract class that represents the policy of scheduling performed by a
- * virtual machine. So, classes extending this must execute Cloudlets. Also, the interface for
+ * virtual machine to run its {@link Cloudlet Cloudlets}. 
+ * So, classes extending this must execute Cloudlets. Also, the interface for
  * cloudlet management is also implemented in this class.
+ * Each VM has to have its own instance of a CloudletScheduler.
  * 
  * @author Rodrigo N. Calheiros
  * @author Anton Beloglazov
@@ -24,27 +29,47 @@ public abstract class CloudletScheduler {
 	/** The previous time. */
 	private double previousTime;
 
-	/** The current mips share. */
+	/** The list of current mips share available for the VM using the scheduler. */
 	private List<Double> currentMipsShare;
 
+	/** The list of cloudlet waiting to be executed on the VM. */
+	protected List<? extends ResCloudlet> cloudletWaitingList;
+
+	/** The list of cloudlets being executed on the VM. */
+	protected List<? extends ResCloudlet> cloudletExecList;
+
+	/** The list of paused cloudlets. */
+	protected List<? extends ResCloudlet> cloudletPausedList;
+
+	/** The list of finished cloudlets. */
+	protected List<? extends ResCloudlet> cloudletFinishedList;
+
+	/** The list of failed cloudlets. */
+	protected List<? extends ResCloudlet> cloudletFailedList;
+
 	/**
-	 * Creates a new CloudletScheduler object. This method must be invoked before starting the
-	 * actual simulation.
+	 * Creates a new CloudletScheduler object. 
+         * A CloudletScheduler must be created before starting the actual simulation.
 	 * 
 	 * @pre $none
 	 * @post $none
 	 */
 	public CloudletScheduler() {
 		setPreviousTime(0.0);
+		cloudletWaitingList = new ArrayList<ResCloudlet>();
+		cloudletExecList = new ArrayList<ResCloudlet>();
+		cloudletPausedList = new ArrayList<ResCloudlet>();
+		cloudletFinishedList = new ArrayList<ResCloudlet>();
+		cloudletFailedList = new ArrayList<ResCloudlet>();
 	}
 
 	/**
 	 * Updates the processing of cloudlets running under management of this scheduler.
 	 * 
 	 * @param currentTime current simulation time
-	 * @param mipsShare array with MIPS share of each processor available to the scheduler
-	 * @return time predicted completion time of the earliest finishing cloudlet, or 0 if there is no
-	 *         next events
+	 * @param mipsShare list with MIPS share of each Pe available to the scheduler
+	 * @return the predicted completion time of the earliest finishing cloudlet, 
+         * or 0 if there is no next events
 	 * @pre currentTime >= 0
 	 * @post $none
 	 */
@@ -53,7 +78,7 @@ public abstract class CloudletScheduler {
 	/**
 	 * Receives an cloudlet to be executed in the VM managed by this scheduler.
 	 * 
-	 * @param gl the submited cloudlet
+	 * @param gl the submited cloudlet (@todo it's a strange param name)
 	 * @param fileTransferTime time required to move the required files from the SAN to the VM
 	 * @return expected finish time of this cloudlet, or 0 if it is in a waiting queue
 	 * @pre gl != null
@@ -74,7 +99,7 @@ public abstract class CloudletScheduler {
 	/**
 	 * Cancels execution of a cloudlet.
 	 * 
-	 * @param clId ID of the cloudlet being cancealed
+	 * @param clId ID of the cloudlet being canceled
 	 * @return the canceled cloudlet, $null if not found
 	 * @pre $none
 	 * @post $none
@@ -117,31 +142,34 @@ public abstract class CloudletScheduler {
 	 * @return status of the cloudlet, -1 if cloudlet not found
 	 * @pre $none
 	 * @post $none
+         * 
+         * @todo cloudlet status should be an enum
 	 */
 	public abstract int getCloudletStatus(int clId);
 
 	/**
-	 * Informs about completion of some cloudlet in the VM managed by this scheduler.
+	 * Informs if there is any cloudlet that finished to execute in the VM managed by this scheduler.
 	 * 
 	 * @return $true if there is at least one finished cloudlet; $false otherwise
 	 * @pre $none
 	 * @post $none
+         * @todo the method name would be isThereFinishedCloudlets to be clearer
 	 */
 	public abstract boolean isFinishedCloudlets();
 
 	/**
-	 * Returns the next cloudlet in the finished list, $null if this list is empty.
+	 * Returns the next cloudlet in the finished list.
 	 * 
-	 * @return a finished cloudlet
+	 * @return a finished cloudlet or $null if the respective list is empty
 	 * @pre $none
 	 * @post $none
 	 */
 	public abstract Cloudlet getNextFinishedCloudlet();
 
 	/**
-	 * Returns the number of cloudlets runnning in the virtual machine.
+	 * Returns the number of cloudlets running in the virtual machine.
 	 * 
-	 * @return number of cloudlets runnning
+	 * @return number of cloudlets running
 	 * @pre $none
 	 * @post $none
 	 */
@@ -157,9 +185,10 @@ public abstract class CloudletScheduler {
 	public abstract Cloudlet migrateCloudlet();
 
 	/**
-	 * Get utilization created by all cloudlets.
+	 * Gets total CPU utilization percentage of all cloudlets, according to CPU UtilizationModel of 
+         * each one.
 	 * 
-	 * @param time the time
+	 * @param time the time to get the current CPU utilization
 	 * @return total utilization
 	 */
 	public abstract double getTotalUtilizationOfCpu(double time);
@@ -170,24 +199,31 @@ public abstract class CloudletScheduler {
 	 * @return the current mips
 	 */
 	public abstract List<Double> getCurrentRequestedMips();
-        
-        
 
 	/**
-	 * Gets the total current mips for the Cloudlet.
+	 * Gets the total current available mips for the Cloudlet.
 	 * 
 	 * @param rcl the rcl
 	 * @param mipsShare the mips share
 	 * @return the total current mips
+         * @todo In fact, this method is returning different data depending 
+         * of the subclass. It is expected that the way the method use to compute
+         * the resulting value can be different in every subclass,
+         * but is not supposed that each subclass returns a complete different 
+         * result for the same method of the superclass.
+         * In some class such as {@link NetworkCloudletSpaceSharedScheduler},
+         * the method returns the average MIPS for the available PEs,
+         * in other classes such as {@link CloudletSchedulerDynamicWorkload} it returns
+         * the MIPS' sum of all PEs.
 	 */
 	public abstract double getTotalCurrentAvailableMipsForCloudlet(ResCloudlet rcl, List<Double> mipsShare);
 
 	/**
-	 * Gets the total current requested mips for cloudlet.
+	 * Gets the total current requested mips for a given cloudlet.
 	 * 
 	 * @param rcl the rcl
 	 * @param time the time
-	 * @return the total current requested mips for cloudlet
+	 * @return the total current requested mips for the given cloudlet
 	 */
 	public abstract double getTotalCurrentRequestedMipsForCloudlet(ResCloudlet rcl, double time);
 
@@ -249,4 +285,110 @@ public abstract class CloudletScheduler {
 	public List<Double> getCurrentMipsShare() {
 		return currentMipsShare;
 	}
+
+	/**
+	 * Gets the cloudlet waiting list.
+	 * 
+	 * @param <T> the generic type
+	 * @return the cloudlet waiting list
+	 */
+	@SuppressWarnings("unchecked")
+	public <T extends ResCloudlet> List<T> getCloudletWaitingList() {
+		return (List<T>) cloudletWaitingList;
+	}
+
+	/**
+	 * Cloudlet waiting list.
+	 * 
+	 * @param <T> the generic type
+	 * @param cloudletWaitingList the cloudlet waiting list
+	 */
+	protected <T extends ResCloudlet> void setCloudletWaitingList(List<T> cloudletWaitingList) {
+		this.cloudletWaitingList = cloudletWaitingList;
+	}
+
+	/**
+	 * Gets the cloudlet exec list.
+	 * 
+	 * @param <T> the generic type
+	 * @return the cloudlet exec list
+	 */
+	@SuppressWarnings("unchecked")
+	public <T extends ResCloudlet> List<T> getCloudletExecList() {
+		return (List<T>) cloudletExecList;
+	}
+
+	/**
+	 * Sets the cloudlet exec list.
+	 * 
+	 * @param <T> the generic type
+	 * @param cloudletExecList the new cloudlet exec list
+	 */
+	protected <T extends ResCloudlet> void setCloudletExecList(List<T> cloudletExecList) {
+		this.cloudletExecList = cloudletExecList;
+	}
+
+	/**
+	 * Gets the cloudlet paused list.
+	 * 
+	 * @param <T> the generic type
+	 * @return the cloudlet paused list
+	 */
+	@SuppressWarnings("unchecked")
+	public <T extends ResCloudlet> List<T> getCloudletPausedList() {
+		return (List<T>) cloudletPausedList;
+	}
+
+	/**
+	 * Sets the cloudlet paused list.
+	 * 
+	 * @param <T> the generic type
+	 * @param cloudletPausedList the new cloudlet paused list
+	 */
+	protected <T extends ResCloudlet> void setCloudletPausedList(List<T> cloudletPausedList) {
+		this.cloudletPausedList = cloudletPausedList;
+	}
+
+	/**
+	 * Gets the cloudlet finished list.
+	 * 
+	 * @param <T> the generic type
+	 * @return the cloudlet finished list
+	 */
+	@SuppressWarnings("unchecked")
+	public <T extends ResCloudlet> List<T> getCloudletFinishedList() {
+		return (List<T>) cloudletFinishedList;
+	}
+
+	/**
+	 * Sets the cloudlet finished list.
+	 * 
+	 * @param <T> the generic type
+	 * @param cloudletFinishedList the new cloudlet finished list
+	 */
+	protected <T extends ResCloudlet> void setCloudletFinishedList(List<T> cloudletFinishedList) {
+		this.cloudletFinishedList = cloudletFinishedList;
+	}
+
+	/**
+	 * Gets the cloudlet failed list.
+	 * 
+	 * @param <T> the generic type
+	 * @return the cloudlet failed list.
+	 */
+	@SuppressWarnings("unchecked")
+	public <T extends ResCloudlet> List<T>  getCloudletFailedList() {
+		return (List<T>) cloudletFailedList;
+	}
+
+	/**
+	 * Sets the cloudlet failed list.
+	 * 
+	 * @param <T> the generic type
+	 * @param cloudletFailedList the new cloudlet failed list.
+	 */
+	protected <T extends ResCloudlet> void setCloudletFailedList(List<T> cloudletFailedList) {
+		this.cloudletFailedList = cloudletFailedList;
+	}
+
 }

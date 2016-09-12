@@ -5,26 +5,30 @@ import java.io.FileReader;
 import java.io.IOException;
 
 /**
- * The Class UtilizationModelPlanetLab.
+ * Defines the resource utilization model based on 
+ * a <a href="https://www.planet-lab.org">PlanetLab</a>
+ * datacenter trace file.
  */
 public class UtilizationModelPlanetLabInMemory implements UtilizationModel {
-
+	
 	/** The scheduling interval. */
 	private double schedulingInterval;
 
 	/** The data (5 min * 288 = 24 hours). */
-	private final double[] data = new double[289];
-
+	private final double[] data; 
+	
 	/**
-	 * Instantiates a new utilization model PlanetLab.
+	 * Instantiates a new PlanetLab resource utilization model from a trace file.
 	 * 
-	 * @param inputPath the input path
+	 * @param inputPath The path of a PlanetLab datacenter trace.
+         * @param schedulingInterval
 	 * @throws NumberFormatException the number format exception
 	 * @throws IOException Signals that an I/O exception has occurred.
 	 */
 	public UtilizationModelPlanetLabInMemory(String inputPath, double schedulingInterval)
 			throws NumberFormatException,
 			IOException {
+		data = new double[289];
 		setSchedulingInterval(schedulingInterval);
 		BufferedReader input = new BufferedReader(new FileReader(inputPath));
 		int n = data.length;
@@ -34,11 +38,30 @@ public class UtilizationModelPlanetLabInMemory implements UtilizationModel {
 		data[n - 1] = data[n - 2];
 		input.close();
 	}
-
-	/*
-	 * (non-Javadoc)
-	 * @see cloudsim.power.UtilizationModel#getUtilization(double)
+	
+	/**
+	 * Instantiates a new PlanetLab resource utilization model with variable data samples
+         * from a trace file.
+	 * 
+	 * @param inputPath The path of a PlanetLab datacenter trace.
+	 * @param dataSamples number of samples in the file
+	 * @throws NumberFormatException the number format exception
+	 * @throws IOException Signals that an I/O exception has occurred.
 	 */
+	public UtilizationModelPlanetLabInMemory(String inputPath, double schedulingInterval, int dataSamples)
+			throws NumberFormatException,
+			IOException {
+		setSchedulingInterval(schedulingInterval);
+		data = new double[dataSamples];
+		BufferedReader input = new BufferedReader(new FileReader(inputPath));
+		int n = data.length;
+		for (int i = 0; i < n - 1; i++) {
+			data[i] = Integer.valueOf(input.readLine()) / 100.0;
+		}
+		data[n - 1] = data[n - 2];
+		input.close();
+	}
+
 	@Override
 	public double getUtilization(double time) {
 		if (time % getSchedulingInterval() == 0) {
@@ -70,5 +93,9 @@ public class UtilizationModelPlanetLabInMemory implements UtilizationModel {
 	 */
 	public double getSchedulingInterval() {
 		return schedulingInterval;
+	}
+	
+	public double[] getData(){
+		return data;
 	}
 }

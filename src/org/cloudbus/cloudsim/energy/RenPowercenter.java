@@ -26,7 +26,6 @@ public class RenPowercenter extends PowerDatacenter{
 		return totalPower;
 	}
 
-	@Override
 	protected double updateCloudetProcessingWithoutSchedulingFutureEventsForce() {
 		double currentTime = CloudSim.clock();
 		double minTime = Double.MAX_VALUE;
@@ -40,7 +39,6 @@ public class RenPowercenter extends PowerDatacenter{
 			Log.printLine();
 
 			double time = host.updateVmsProcessing(currentTime); // inform VMs to update processing
-                     //   Log.printLine("timee = " + time);
 			if (time < minTime) {
 				minTime = time;
 			}
@@ -49,7 +47,7 @@ public class RenPowercenter extends PowerDatacenter{
 					"%.2f: [Host #%d] utilization is %.2f%%",
 					currentTime,
 					host.getId(),
-					host.getUtilizationOfCpu() * 100);                        
+					host.getUtilizationOfCpu() * 100);
 		}
 
 		if (timeDiff > 0) {
@@ -80,7 +78,6 @@ public class RenPowercenter extends PowerDatacenter{
 						currentTime,
 						host.getId(),
 						timeFrameHostEnergy);
-                                host.isDvfsActivatedOnHost();
 			}
 
 			Log.formatLine(
@@ -96,7 +93,7 @@ public class RenPowercenter extends PowerDatacenter{
 			totalPower.add(power);
 		}
 		
-		setPower(power);
+		setPower(getPower() + timeFrameDatacenterEnergy);
 
 		checkCloudletCompletion();
 
@@ -110,9 +107,10 @@ public class RenPowercenter extends PowerDatacenter{
 		}
 
 		Log.printLine();
-   
+
 		setLastProcessTime(currentTime);
 		return minTime;
 	}
+	
 	
 }

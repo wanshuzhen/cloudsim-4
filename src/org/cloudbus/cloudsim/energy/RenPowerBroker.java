@@ -9,7 +9,6 @@ import org.cloudbus.cloudsim.Log;
 import org.cloudbus.cloudsim.Vm;
 import org.cloudbus.cloudsim.core.CloudSim;
 import org.cloudbus.cloudsim.core.CloudSimTags;
-import org.cloudbus.cloudsim.core.EventPostBroker;
 import org.cloudbus.cloudsim.core.SimEvent;
 
 public class RenPowerBroker extends DatacenterBroker {
@@ -18,9 +17,6 @@ public class RenPowerBroker extends DatacenterBroker {
 		super(name);
 	}
 	
-	public RenPowerBroker(String name, EventPostBroker evt_) throws Exception {
-		super(name,evt_);
-	}
 	
 	@Override
 	protected void processResourceCharacteristics(SimEvent ev) {

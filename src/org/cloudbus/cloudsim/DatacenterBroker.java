@@ -16,7 +16,6 @@ import java.util.Map;
 
 import org.cloudbus.cloudsim.core.CloudSim;
 import org.cloudbus.cloudsim.core.CloudSimTags;
-import org.cloudbus.cloudsim.core.EventPostBroker;
 import org.cloudbus.cloudsim.core.SimEntity;
 import org.cloudbus.cloudsim.core.SimEvent;
 import org.cloudbus.cloudsim.lists.CloudletList;
@@ -24,7 +23,7 @@ import org.cloudbus.cloudsim.lists.VmList;
 
 /**
  * DatacentreBroker represents a broker acting on behalf of a user. It hides VM management, as vm
- * creation, sumbission of cloudlets to this VMs and destruction of VMs.
+ * creation, submission of cloudlets to VMs and destruction of VMs.
  * 
  * @author Rodrigo N. Calheiros
  * @author Anton Beloglazov
@@ -32,53 +31,54 @@ import org.cloudbus.cloudsim.lists.VmList;
  */
 public class DatacenterBroker extends SimEntity {
 
-	/** The vm list. */
+	/** The list of VMs submitted to be managed by the broker. */
 	protected List<? extends Vm> vmList;
 
-	/** The vms created list. */
+	/** The list of VMs created by the broker. */
 	protected List<? extends Vm> vmsCreatedList;
 
-	/** The cloudlet list. */
+	/** The list of cloudlet submitted to the broker. 
+         * @see #submitCloudletList(java.util.List) 
+         */
 	protected List<? extends Cloudlet> cloudletList;
 
-	/** The cloudlet submitted list. */
+	/** The list of submitted cloudlets. */
 	protected List<? extends Cloudlet> cloudletSubmittedList;
 
-	/** The cloudlet received list. */
+	/** The list of received cloudlet. */
 	protected List<? extends Cloudlet> cloudletReceivedList;
 
-	/** The cloudlets submitted. */
+	/** The number of submitted cloudlets. */
 	protected int cloudletsSubmitted;
 
-	/** The vms requested. */
+	/** The number of requests to create VM. */
 	protected int vmsRequested;
 
-	/** The vms acks. */
+	/** The number of acknowledges (ACKs) sent in response to
+         * VM creation requests. */
 	protected int vmsAcks;
 
-	/** The vms destroyed. */
+	/** The number of destroyed VMs. */
 	protected int vmsDestroyed;
 
-	/** The datacenter ids list. */
+	/** The id's list of available datacenters. */
 	protected List<Integer> datacenterIdsList;
 
-	/** The datacenter requested ids list. */
+	/** The list of datacenters where was requested to place VMs. */
 	protected List<Integer> datacenterRequestedIdsList;
 
-	/** The vms to datacenters map. */
+	/** The vms to datacenters map, where each key is a VM id
+         * and each value is the datacenter id whwere the VM is placed. */
 	protected Map<Integer, Integer> vmsToDatacentersMap;
 
-	/** The datacenter characteristics list. */
+	/** The datacenter characteristics map where each key
+         * is a datacenter id and each value is its characteristics.. */
 	protected Map<Integer, DatacenterCharacteristics> datacenterCharacteristicsList;
-
-        
-        protected EventPostBroker Postevt=null;
 
 	/**
 	 * Created a new DatacenterBroker object.
 	 * 
-	 * @param name name to be associated with this entity (as required by Sim_entity class from
-	 *            simjava package)
+	 * @param name name to be associated with this entity (as required by {@link SimEntity} class)
 	 * @throws Exception the exception
 	 * @pre name != null
 	 * @post $none
@@ -102,43 +102,6 @@ public class DatacenterBroker extends SimEntity {
 		setVmsToDatacentersMap(new HashMap<Integer, Integer>());
 		setDatacenterCharacteristicsList(new HashMap<Integer, DatacenterCharacteristics>());
 	}
-        
-        /**
-         * 
-         * Constructor like Datacenterbroker(name)  +  POST EVENT
-         * This constructor is used when a broker need to launch another broker
-         * at the end of its execution.
-         * 
-         * In the case where low frequency CPU is used (due to DVFS), an execution delay can appear in some broker,
-         * This constructor allow to keep the right execution order of a broker.
-         * 
-         * 
-         * @param name
-         * @param evt_
-         * @throws Exception 
-         */
-	public DatacenterBroker(String name, EventPostBroker evt_) throws Exception {
-		super(name);
-
-		setVmList(new ArrayList<Vm>());
-		setVmsCreatedList(new ArrayList<Vm>());
-		setCloudletList(new ArrayList<Cloudlet>());
-		setCloudletSubmittedList(new ArrayList<Cloudlet>());
-		setCloudletReceivedList(new ArrayList<Cloudlet>());
-
-		cloudletsSubmitted = 0;
-		setVmsRequested(0);
-		setVmsAcks(0);
-		setVmsDestroyed(0);
-
-		setDatacenterIdsList(new LinkedList<Integer>());
-		setDatacenterRequestedIdsList(new ArrayList<Integer>());
-		setVmsToDatacentersMap(new HashMap<Integer, Integer>());
-		setDatacenterCharacteristicsList(new HashMap<Integer, DatacenterCharacteristics>());
-                
-                setPostevt(evt_);
-	}
-                
 
 	/**
 	 * This method is used to send to the broker the list with virtual machines that must be
@@ -158,9 +121,15 @@ public class DatacenterBroker extends SimEntity {
 	 * @param list the list
 	 * @pre list !=null
 	 * @post $none
+         * 
+         * @todo The name of the method is confused with the {@link #submitCloudlets()},
+         * that in fact submit cloudlets to VMs. The term "submit" is being used
+         * ambiguously. The method {@link #submitCloudlets()} would be named "sendCloudletsToVMs"
+         * 
+         * The method {@link #submitVmList(java.util.List)} may have
+         * be checked too.
 	 */
 	public void submitCloudletList(List<? extends Cloudlet> list) {
-       //     Log.printLine("liste submit cloudlet size : " + list.size());
 		getCloudletList().addAll(list);
 	}
 
@@ -177,13 +146,6 @@ public class DatacenterBroker extends SimEntity {
 		CloudletList.getById(getCloudletList(), cloudletId).setVmId(vmId);
 	}
 
-	/**
-	 * Processes events available for this Broker.
-	 * 
-	 * @param ev a SimEvent object
-	 * @pre ev != null
-	 * @post $none
-	 */
 	@Override
 	public void processEvent(SimEvent ev) {
 		switch (ev.getTag()) {
@@ -215,7 +177,7 @@ public class DatacenterBroker extends SimEntity {
 	}
 
 	/**
-	 * Process the return of a request for the characteristics of a PowerDatacenter.
+	 * Process the return of a request for the characteristics of a Datacenter.
 	 * 
 	 * @param ev a SimEvent object
 	 * @pre ev != $null
@@ -242,8 +204,8 @@ public class DatacenterBroker extends SimEntity {
 		setDatacenterIdsList(CloudSim.getCloudResourceList());
 		setDatacenterCharacteristicsList(new HashMap<Integer, DatacenterCharacteristics>());
 
-		Log.printLine(CloudSim.clock() + ": " + getName() + ": Cloud Resource List received with "
-				+ getDatacenterIdsList().size() + " resource(s)");
+		Log.printConcatLine(CloudSim.clock(), ": ", getName(), ": Cloud Resource List received with ",
+				getDatacenterIdsList().size(), " resource(s)");
 
 		for (Integer datacenterId : getDatacenterIdsList()) {
 			sendNow(datacenterId, CloudSimTags.RESOURCE_CHARACTERISTICS, getId());
@@ -262,25 +224,16 @@ public class DatacenterBroker extends SimEntity {
 		int datacenterId = data[0];
 		int vmId = data[1];
 		int result = data[2];
-               
-                
-                /*Log.printLine("datacenterId = " + datacenterId);
-                Log.printLine("vmId = " + vmId);
-                Log.printLine("result = " + result);*/
-                
+
 		if (result == CloudSimTags.TRUE) {
 			getVmsToDatacentersMap().put(vmId, datacenterId);
 			getVmsCreatedList().add(VmList.getById(getVmList(), vmId));
-                        
-                  //      Log.printLine("vm Host iddd : " + VmList.getById(getVmsCreatedList(), vmId).getHost().getId());
-                        
-                        
-			Log.printLine(CloudSim.clock() + ": " + getName() + ": VM #" + vmId
-					+ " has been created in Datacenter #" + datacenterId + ", Host #"
-					+ VmList.getById(getVmsCreatedList(), vmId).getHost().getId());
+			Log.printConcatLine(CloudSim.clock(), ": ", getName(), ": VM #", vmId,
+					" has been created in Datacenter #", datacenterId, ", Host #",
+					VmList.getById(getVmsCreatedList(), vmId).getHost().getId());
 		} else {
-			Log.printLine(CloudSim.clock() + ": " + getName() + ": DATACENTERBROKER : Creation of VM #" + vmId
-					+ " failed in Datacenter #" + datacenterId);
+			Log.printConcatLine(CloudSim.clock(), ": ", getName(), ": Creation of VM #", vmId,
+					" failed in Datacenter #", datacenterId);
 		}
 
 		incrementVmsAcks();
@@ -321,17 +274,13 @@ public class DatacenterBroker extends SimEntity {
 	protected void processCloudletReturn(SimEvent ev) {
 		Cloudlet cloudlet = (Cloudlet) ev.getData();
 		getCloudletReceivedList().add(cloudlet);
-		Log.printLine(CloudSim.clock() + ": " + getName() + ": Cloudlet " + cloudlet.getCloudletId()
-				+ " received");
+		Log.printConcatLine(CloudSim.clock(), ": ", getName(), ": Cloudlet ", cloudlet.getCloudletId(),
+				" received");
 		cloudletsSubmitted--;
 		if (getCloudletList().size() == 0 && cloudletsSubmitted == 0) { // all cloudlets executed
-			Log.printLine(CloudSim.clock() + ": " + getName() + ": All Cloudlets executed. Finishing...");
+			Log.printConcatLine(CloudSim.clock(), ": ", getName(), ": All Cloudlets executed. Finishing...");
 			clearDatacenters();
 			finishExecution();
-                        processPostEvent();
-                        // Maybe create an "Broker End Event" ?
-                        
-                        
 		} else { // some cloudlets haven't finished yet
 			if (getCloudletList().size() > 0 && cloudletsSubmitted == 0) {
 				// all the cloudlets sent finished. It means that some bount
@@ -342,47 +291,35 @@ public class DatacenterBroker extends SimEntity {
 
 		}
 	}
-           
-        /**
-         * 
-         * Schedule the PostEvent of a broker.
-         * This method is called by "processCloudletReturn" when all Cloudlet of a Broker are ended
-         * 
-         */
-        protected void processPostEvent()
-        {
-            
-            if(getPostevt()!=null)
-            {
-                //Log.printLine("Broker " + getId() + "execution has finished,  postEvent is starting... ");
-                  scheduleNow(Postevt.getDest(), Postevt.getTag());
-            }
-        }
-        
+
 	/**
-	 * Overrides this method when making a new and different type of Broker. This method is called
-	 * by {@link #body()} for incoming unknown tags.
+	 * Process non-default received events that aren't processed by
+         * the {@link #processEvent(org.cloudbus.cloudsim.core.SimEvent)} method.
+         * This method should be overridden by subclasses in other to process
+         * new defined events.
 	 * 
 	 * @param ev a SimEvent object
 	 * @pre ev != null
 	 * @post $none
+         * @todo to ensure the method will be overridden, it should be defined 
+         * as abstract in a super class from where new brokers have to be extended.
 	 */
 	protected void processOtherEvent(SimEvent ev) {
 		if (ev == null) {
-			Log.printLine(getName() + ".processOtherEvent(): " + "Error - an event is null.");
+			Log.printConcatLine(getName(), ".processOtherEvent(): ", "Error - an event is null.");
 			return;
 		}
 
-		Log.printLine(getName() + ".processOtherEvent(): "
-				+ "Error - event unknown by this DatacenterBroker.");
+		Log.printConcatLine(getName(), ".processOtherEvent(): Error - event unknown by this DatacenterBroker.");
 	}
 
 	/**
-	 * Create the virtual machines in a datacenter.
+	 * Create the submitted virtual machines in a datacenter.
 	 * 
-	 * @param datacenterId Id of the chosen PowerDatacenter
+	 * @param datacenterId Id of the chosen Datacenter
 	 * @pre $none
 	 * @post $none
+         * @see #submitVmList(java.util.List) 
 	 */
 	protected void createVmsInDatacenter(int datacenterId) {
 		// send as much vms as possible for this datacenter before trying the next one
@@ -408,12 +345,11 @@ public class DatacenterBroker extends SimEntity {
 	 * 
 	 * @pre $none
 	 * @post $none
+         * @see #submitCloudletList(java.util.List) 
 	 */
 	protected void submitCloudlets() {
 		int vmIndex = 0;
-                
-                Log.printLine("allo oui submitCloudlet !");
-                
+		List<Cloudlet> successfullySubmitted = new ArrayList<Cloudlet>();
 		for (Cloudlet cloudlet : getCloudletList()) {
 			Vm vm;
 			// if user didn't bind this cloudlet and it has not been executed yet
@@ -422,39 +358,43 @@ public class DatacenterBroker extends SimEntity {
 			} else { // submit to the specific vm
 				vm = VmList.getById(getVmsCreatedList(), cloudlet.getVmId());
 				if (vm == null) { // vm was not created
-					Log.printLine(CloudSim.clock() + ": " + getName() + ": Postponing execution of cloudlet "
-							+ cloudlet.getCloudletId() + ": bount VM not available");
+					if(!Log.isDisabled()) {				    
+					    Log.printConcatLine(CloudSim.clock(), ": ", getName(), ": Postponing execution of cloudlet ",
+							cloudlet.getCloudletId(), ": bount VM not available");
+					}
 					continue;
 				}
 			}
 
-			Log.printLine(CloudSim.clock() + ": " + getName() + ": Sending cloudlet "
-					+ cloudlet.getCloudletId() + " to VM #" + vm.getId());
+			if (!Log.isDisabled()) {
+			    Log.printConcatLine(CloudSim.clock(), ": ", getName(), ": Sending cloudlet ",
+					cloudlet.getCloudletId(), " to VM #", vm.getId());
+			}
+			
 			cloudlet.setVmId(vm.getId());
 			sendNow(getVmsToDatacentersMap().get(vm.getId()), CloudSimTags.CLOUDLET_SUBMIT, cloudlet);
 			cloudletsSubmitted++;
 			vmIndex = (vmIndex + 1) % getVmsCreatedList().size();
 			getCloudletSubmittedList().add(cloudlet);
+			successfullySubmitted.add(cloudlet);
 		}
 
 		// remove submitted cloudlets from waiting list
-		for (Cloudlet cloudlet : getCloudletSubmittedList()) {
-			getCloudletList().remove(cloudlet);
-		}
+		getCloudletList().removeAll(successfullySubmitted);
 	}
 
 	/**
-	 * Destroy the virtual machines running in datacenters.
+	 * Destroy all virtual machines running in datacenters.
 	 * 
 	 * @pre $none
 	 * @post $none
 	 */
 	protected void clearDatacenters() {
 		for (Vm vm : getVmsCreatedList()) {
-			Log.printLine(CloudSim.clock() + ": " + getName() + ": Destroying VM #" + vm.getId());
-			sendNow(getVmsToDatacentersMap().get(vm.getId()), CloudSimTags.VM_DESTROY, vm);                
+			Log.printConcatLine(CloudSim.clock(), ": " + getName(), ": Destroying VM #", vm.getId());
+			sendNow(getVmsToDatacentersMap().get(vm.getId()), CloudSimTags.VM_DESTROY, vm);
 		}
-                
+
 		getVmsCreatedList().clear();
 	}
 
@@ -468,22 +408,14 @@ public class DatacenterBroker extends SimEntity {
 		sendNow(getId(), CloudSimTags.END_OF_SIMULATION);
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * @see cloudsim.core.SimEntity#shutdownEntity()
-	 */
 	@Override
 	public void shutdownEntity() {
-		Log.printLine(getName() + " is shutting down...");
+		Log.printConcatLine(getName(), " is shutting down...");
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * @see cloudsim.core.SimEntity#startEntity()
-	 */
 	@Override
 	public void startEntity() {
-		Log.printLine(getName() + " is starting...");
+		Log.printConcatLine(getName(), " is starting...");
 		schedule(getId(), 0, CloudSimTags.RESOURCE_CHARACTERISTICS_REQUEST);
 	}
 
@@ -591,7 +523,7 @@ public class DatacenterBroker extends SimEntity {
 	protected <T extends Vm> void setVmsCreatedList(List<T> vmsCreatedList) {
 		this.vmsCreatedList = vmsCreatedList;
 	}
-        
+
 	/**
 	 * Gets the vms requested.
 	 * 
@@ -629,7 +561,8 @@ public class DatacenterBroker extends SimEntity {
 	}
 
 	/**
-	 * Increment vms acks.
+	 * Increment the number of acknowledges (ACKs) sent in response
+         * to requests of VM creation.
 	 */
 	protected void incrementVmsAcks() {
 		vmsAcks++;
@@ -726,15 +659,4 @@ public class DatacenterBroker extends SimEntity {
 		this.datacenterRequestedIdsList = datacenterRequestedIdsList;
 	}
 
-        
-        
-    public EventPostBroker getPostevt() {
-        return Postevt;
-    }
-
-    public void setPostevt(EventPostBroker Postevt) {
-        this.Postevt = Postevt;
-    }
-    
-    
 }
